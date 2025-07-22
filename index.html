@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Appel Endless Level Generator</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      text-align: center;
+      padding: 40px;
+    }
+
+    .checkboxes {
+      margin-bottom: 20px;
+      font-size: 18px;
+    }
+
+    button {
+      padding: 10px 25px;
+      font-size: 18px;
+      margin: 5px;
+      cursor: pointer;
+    }
+
+    #code-display {
+      margin-top: 30px;
+      font-size: 20px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    #meta {
+      margin-top: 10px;
+      font-size: 14px;
+      color: #555;
+    }
+
+    #stats {
+      margin-top: 30px;
+      font-size: 16px;
+      color: #222;
+    }
+  </style>
+</head>
+<body>
+  <h1>Appel Endless Level Generator</h1>
+
+  <div class="checkboxes">
+    <label><input type="checkbox" id="old-forum" checked> Old Forum</label>
+    <label style="margin-left: 20px;"><input type="checkbox" id="new-forum" checked> New Forum</label>
+  </div>
+
+  <div id="stats"></div>
+
+  <div id="buttons">
+    <button id="generate-btn">Start Run</button>
+  </div>
+
+  <div id="code-display">Press "Start Run" to begin!</div>
+  <div id="meta"></div>
+  
+
+  <script>
+    const sources = {
+      "old-forum": [],
+      "new-forum": []
+    };
+
+    let queue = []; // active shuffled level pool
+    let current = null;
+
+    let completed = 0;
+    let skipped = 0;
+
+    function normalizeDate(dateStr) {
+      // Attempt to parse common formats
+      const date = new Date(dateStr);
+      if (!isNaN(date)) {
+        return date.toISOString().replace("T", " ").split(".")[0];
+      }
+      return dateStr; // fallback
+    }
+
+    function loadForumData(forumId, filename) {
+      fetch(filename)
+        .then(res => res.json())
+        .then(data => {
+          sources[forumId] = data.map(entry => ({
+            ...entry,
+            normalizedDate: normalizeDate(entry.date)
+          }));
+          console.log(`Loaded ${data.length} levels from ${filename}`);
+        })
+        .catch(err => {
+          console.error(`Failed to load ${filename}`, err);
+        });
+    }
+
+    loadForumData("old-forum", "old-forum.json");
+    loadForumData("new-forum", "new-forum.json");
+
+    function shuffle(array) {
+      // Fisher-Yates shuffle
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    }
+
+    function startRun() {
+      const useOld = document.getElementById("old-forum").checked;
+      const useNew = document.getElementById("new-forum").checked;
+
+      let combined = [];
+      if (useOld) combined = combined.concat(sources["old-forum"]);
+      if (useNew) combined = combined.concat(sources["new-forum"]);
+
+      if (combined.length === 0) {
+        alert("No forum sources selected or data not loaded.");
+        return;
+      }
+
+      queue = shuffle([...combined]);
+      completed = 0;
+      skipped = 0;
+
+      nextLevel();
+    }
+
+    function nextLevel() {
+      if (queue.length === 0) {
+        document.getElementById('code-display').innerText = "Run complete!";
+        document.getElementById('meta').innerText = "";
+        document.getElementById('buttons').innerHTML = `<button onclick="startRun()">Start New Run</button>`;
+        updateStats();
+        return;
+      }
+
+      current = queue.pop();
+
+      document.getElementById('code-display').innerText = current.code;
+      document.getElementById('meta').innerText = `By ${current.username}, ${current.normalizedDate} (Post ID: ${current.post_id}, Count: ${current.count})`;
+
+      document.getElementById('buttons').innerHTML = `
+        <button onclick="markCompleted()">Completed</button>
+        <button onclick="markSkipped()">Skip</button>
+      `;
+
+      updateStats();
+    }
+
+    function markCompleted() {
+      completed++;
+      nextLevel();
+    }
+
+    function markSkipped() {
+      skipped++;
+      nextLevel();
+    }
+
+    function updateStats() {
+      const total = completed + skipped + (queue.length > 0 ? 1 : 0);
+      document.getElementById('stats').innerText =
+        `Levels Seen: ${total} | Completed: ${completed} | Skipped: ${skipped}`;
+    }
+
+    // Initial button event
+    document.getElementById("generate-btn").addEventListener("click", startRun);
+  </script>
+</body>
+</html>
