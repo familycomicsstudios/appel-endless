@@ -1,236 +1,411 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Appel Endless Level Generator</title>
+    <head>
+        <meta charset="UTF-8" />
+        <title>Appel Endless Level Generator</title>
+        <!-- 🌟 Preview Image for Discord, Twitter, etc. -->
+        <meta property="og:title" content="Appel Endless Level Generator" />
+        <meta property="og:description" content="Random endless level browser for Appel levels." />
+        <meta property="og:image" content="preview.png" />
+        <!-- replace with your actual preview image file -->
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="http://your-site-url.com" />
+        <style>
+            body {
+                font-family: 'Segoe UI', sans-serif;
+                text-align: center;
+                padding: 0px;
+                color: #fff;
+                text-shadow: 1px 1px 2px #000;
+                overflow-x: hidden;
+                /* prevent horizontal scroll */
+                position: relative;
+                z-index: 1;
+                background: black;
+                background-image: url("bg.svg");
+                justify-content: center;
+            }
 
-  <!-- 🌟 Preview Image for Discord, Twitter, etc. -->
-  <meta property="og:title" content="Appel Endless Level Generator">
-  <meta property="og:description" content="Random endless level browser for Appel levels.">
-  <meta property="og:image" content="preview.png"> <!-- replace with your actual preview image file -->
-  <meta property="og:type" content="website">
-  <meta property="og:url" content="http://your-site-url.com">
+            h1 {
+                position: relative;
+                z-index: 1;
+            }
 
-  <style>
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      text-align: center;
-      padding: 40px;
-      background: url('bg.svg') no-repeat center center fixed;
-      background-size: cover;
-      color: #fff;
-      text-shadow: 1px 1px 2px #000;
-    }
+            #scrolling-background {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100vw;
+                height: 100vh;
+                background: black;
+                background-image: url("bg.svg");
+                z-index: 0;
+                pointer-events: none;
+                overflow: hidden;
+            }
 
-    button {
-      padding: 10px 25px;
-      font-size: 18px;
-      margin: 5px;
-      cursor: pointer;
-    }
+            .scroll-row {
+                position: absolute;
+                left: 0;
+                width: 100%;
+                height: 200;
+                /* adjust to match JS rowHeight */
+                overflow: hidden;
+                pointer-events: auto;
+            }
 
-    #code-display {
-      margin-top: 30px;
-      font-size: 20px;
-      white-space: pre-wrap;
-      word-break: break-word;
-    }
+            .scroll-wrapper {
+                display: flex;
+                gap: 10px;
+                height: 100%;
+                pointer-events: auto;
+                will-change: transform;
+            }
 
-    #meta {
-      margin-top: 10px;
-      font-size: 14px;
-      color: #ddd;
-    }
+            .scroll-item {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                pointer-events: auto;
+            }
 
-    #stats {
-      margin-top: 30px;
-      font-size: 16px;
-      color: #ccc;
-    }
-  </style>
-</head>
-<body>
-  <h1>Appel Endless Level Generator</h1>
+            .scroll-item img {
+                height: 200px;
+                flex-shrink: 0;
+                border: 1px solid #444;
+                border-radius: 4px;
+                filter: brightness(0.9);
+                transition: filter 0.3s ease;
+                cursor: pointer;
+            }
 
-  <div id="stats"></div>
+            .scroll-item img:hover {
+                filter: brightness(1);
+            }
 
-  <div id="buttons">
-  <label>
-    <input type="checkbox" id="exclude" />
-    Exclude AHLLE
-  </label>
-  <br>
-  <button id="generate-btn">Start Run</button>
-  </div>
+            .scroll-caption {
+                margin-top: 1px;
+                font-size: 14px;
+                color: #fff;
+                pointer-events: none;
+            }
 
+            button {
+                padding: 10px 25px;
+                font-size: 18px;
+                margin: 5px;
+                cursor: pointer;
+            }
 
-  <div id="preview" onclick="copyCodeToClipboard()"></div>  <!-- New preview container -->
-  <div id="meta"></div>
+            #code-display {
+                margin-top: 30px;
+                font-size: 20px;
+                white-space: pre-wrap;
+                word-break: break-word;
+                position: relative;
+                z-index: 2;
+            }
 
-  <div id="code-display">Press "Start Run" to begin!</div>
-  <div id="meta"></div>
+            #meta {
+                margin-top: 10px;
+                font-size: 14px;
+                color: #ddd;
+                position: relative;
+                z-index: 2;
+            }
 
-  <script type="module">
-    import { LevelRenderer } from './levelRenderer.js';  // adjust path as needed
+            #stats {
+                margin-top: 30px;
+                font-size: 16px;
+                color: #ccc;
+                position: relative;
+                z-index: 2;
+            }
 
-    const renderer = new LevelRenderer();
+            #buttons {
+                position: relative;
+                z-index: 2;
+            }
 
-    const sources = {
-      "old-forum": [],
-      "new-forum": [],
-      "ahlle": []
-    };
+            #preview {
+                margin-top: 15px;
+                position: relative;
+                z-index: 2;
+                cursor: pointer;
+                width: 25%;
+                margin: 0 auto;
+            }
+        </style>
+    </head>
+    <body>
+        <!-- Scrolling background container -->
+        <div id="scrolling-background"></div>
+        <h1>Appel Endless Level Generator</h1>
+        <div id="stats"></div>
+        <div id="buttons">
+            <label>
+                <input type="checkbox" id="exclude-ahlle" /> Exclude AHLLE </label>
+            <br />
+            <label>
+                <input type="checkbox" id="exclude-old" /> Exclude Old Forum </label>
+            <br />
+            <label>
+                <input type="checkbox" id="exclude-new" /> Exclude New Forum </label>
+            <br />
+            <button id="generate-btn">Start Run</button>
+        </div>
+        <div id="preview" onclick="copyCodeToClipboard()"></div>
+        <!-- New preview container -->
+        <div id="meta"></div>
+        <div id="code-display">Press "Start Run" to begin!</div>
+        <div id="meta"></div>
+        <script type="module">
+            import {
+                LevelRenderer
+            } from './levelRenderer.js'; // adjust path as needed
+            const renderer = new LevelRenderer();
+            const sources = {
+                'old-forum': [],
+                'new-forum': [],
+                'ahlle': [],
+            };
+            let queue = [];
+            let current = null;
+            let completed = 0;
+            let skipped = 0;
 
-    let queue = [];
-    let current = null;
-    let completed = 0;
-    let skipped = 0;
+            function normalizeDate(dateStr) {
+                const date = new Date(dateStr);
+                if (!isNaN(date)) {
+                    return date.toISOString().replace('T', ' ').split('.')[0];
+                }
+                return dateStr;
+            }
 
-    function normalizeDate(dateStr) {
-      const date = new Date(dateStr);
-      if (!isNaN(date)) {
-        return date.toISOString().replace("T", " ").split(".")[0];
-      }
-      return dateStr;
-    }
+            function loadForumData(forumId, filename) {
+                fetch(filename).then((res) => res.json()).then((data) => {
+                    sources[forumId] = data.map((entry) => ({
+                        ...entry,
+                        normalizedDate: normalizeDate(entry.date),
+                    }));
+                    console.log(`Loaded ${data.length} levels from ${filename}`);
+                }).catch((err) => {
+                    console.error(`Failed to load ${filename}`, err);
+                });
+            }
+            loadForumData('old-forum', 'old.json');
+            loadForumData('new-forum', 'new.json');
+            loadForumData('ahlle', 'ahlle.json');
 
-    function loadForumData(forumId, filename) {
-      fetch(filename)
-        .then(res => res.json())
-        .then(data => {
-          sources[forumId] = data.map(entry => ({
-            ...entry,
-            normalizedDate: normalizeDate(entry.date)
-          }));
-          console.log(`Loaded ${data.length} levels from ${filename}`);
-        })
-        .catch(err => {
-          console.error(`Failed to load ${filename}`, err);
-        });
-    }
+            function shuffle(array) {
+                for (let i = array.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [array[i], array[j]] = [array[j], array[i]];
+                }
+                return array;
+            }
+            async function startRun() {
+                const excludeAhlle = document.getElementById('exclude-ahlle').checked;
+                const excludeOld = document.getElementById('exclude-old').checked;
+                const excludeNew = document.getElementById('exclude-new').checked;
+                let combined = [...(excludeOld ? [] : sources['old-forum']), ...(excludeNew ? [] : sources['new-forum']), ...(excludeAhlle ? [] : sources['ahlle']), ];
+                if (combined.length === 0) {
+                    alert("bruh. you cant check all of them");
+                    return;
+                }
+                queue = shuffle([...combined]);
+                completed = 0;
+                skipped = 0;
+                await renderer.loadAssets(); // preload assets once before run
+                nextLevel();
+            }
 
-    loadForumData("old-forum", "old.json");
-    loadForumData("new-forum", "new.json");
-    loadForumData("ahlle", "ahlle.json");
+            function copyCodeToClipboard() {
+                const code = current?.code;
+                if (!code) return;
+                navigator.clipboard.writeText(code).catch((err) => console.error('Failed to copy code:', err));
+            }
+            async function nextLevel() {
+                if (queue.length === 0) {
+                    document.getElementById('code-display').innerText = 'Run complete!';
+                    document.getElementById('meta').innerText = '';
+                    document.getElementById('preview').innerHTML = '';
+                    updateStats();
+                    return;
+                }
+                try {
+                    while (queue.length > 0) {
+                        current = queue.pop();
+                        const levelData = LevelRenderer.getDataFromCode(current.code);
+                        if (levelData.map.includes(63)) {
+                            break; // Valid level found
+                        }
+                        console.log('Level without 63 skipped');
+                    }
+                    if (!current || !LevelRenderer.getDataFromCode(current.code).map.includes(63)) {
+                        console.warn('No valid level found in queue.');
+                        document.getElementById('code-display').innerText = 'No suitable levels found.';
+                        document.getElementById('buttons').innerHTML = `
+			
+			
+			
+			<button onclick="startRun()">Start New Run</button>`;
+                        return;
+                    }
+                } catch (e) {
+                    console.error('Error parsing level:', e);
+                }
+                document.getElementById('code-display').innerText = current.code;
+                console.log(current.count === 0)
+                if (current.count === 0) {
+                    document.getElementById('meta').innerText = `${current.label}, Rank #${current.rank}`;
+                } else {
+                    document.getElementById('meta').innerText = `By ${current.username}, ${current.normalizedDate} (Post ID: ${current.post_id}, Count: ${current.count})`;
+                }
+                document.getElementById('buttons').innerHTML = `
+        
+			
+			
+			
+			<button onclick="markCompleted()">Completed</button>
+			<button onclick="markSkipped()">Skip</button>
+			<button onclick="skipImpossible()">Skip Impossible Level</button>
+			<button onclick="copyCodeToClipboard()">Copy Code</button>
+      `;
+                updateStats();
+                // Render level preview image
+                try {
+                    const levelData = LevelRenderer.getDataFromCode(current.code);
+                    const imageDataUrl = await renderer.renderLevelImage(levelData);
+                    document.getElementById('preview').innerHTML = `
+			
+			
+			
+			<img src="${imageDataUrl}" alt="Level Preview">`;
+                } catch (e) {
+                    console.error('Error rendering preview:', e);
+                    document.getElementById('preview').innerHTML = `
+				
+				
+				
+				<div style="color: red;">Failed to render preview</div>`;
+                }
+            }
 
-    function shuffle(array) {
-      for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
-      }
-      return array;
-    }
+            function markCompleted() {
+                completed++;
+                nextLevel();
+            }
 
-    async function startRun() {
-      let combined = [...sources["old-forum"], ...sources["new-forum"], ...(exclude ? [] : sources["ahlle"])];
-      if (combined.length === 0) {
-        alert("No data loaded.");
-        return;
-      }
+            function markSkipped() {
+                skipped++;
+                nextLevel();
+            }
 
-      queue = shuffle([...combined]);
-      completed = 0;
-      skipped = 0;
-      await renderer.loadAssets();  // preload assets once before run
-      nextLevel();
-    }
-    function copyCodeToClipboard() {
-        const code = current?.code;
-        if (!code) return;
-        navigator.clipboard.writeText(code)
-            .catch(err => console.error("Failed to copy code:", err));
-    }
+            function skipImpossible() {
+                nextLevel();
+            }
 
+            function updateStats() {
+                const total = completed + skipped + (queue.length > 0 ? 1 : 0);
+                document.getElementById('stats').innerText = `Levels Seen: ${total} | Completed: ${completed} | Skipped: ${skipped}`;
+            }
+            document.getElementById('generate-btn').addEventListener('click', startRun);
+            // Expose markCompleted and markSkipped globally so inline onclick works
+            window.markCompleted = markCompleted;
+            window.markSkipped = markSkipped;
+            window.startRun = startRun;
+            window.copyCodeToClipboard = copyCodeToClipboard;
+            window.skipImpossible = skipImpossible;
+            // Load and scroll background level previews
+            async function loadScrollingBackground() {
+                const bg = document.getElementById('scrolling-background');
+                if (!bg) return;
+                // 1) Wait for data
+                await new Promise(res => {
+                    const chk = () => {
+                        if (sources['old-forum'].length && sources['new-forum'].length && sources['ahlle'].length) res();
+                        else setTimeout(chk, 200);
+                    };
+                    chk();
+                });
+                // 2) Prepare data & preload
+                const allLevels = [...sources['old-forum'], ...sources['new-forum'], ...sources['ahlle']];
+                await renderer.loadAssets();
+                // 3) Settings
+                const ROWS = 5;
+                const PER_ROW = 10;
+                const ROW_H = 220; // px, matches .scroll-row height
+                const GAP = 10; // px, matches CSS gap
+                const ITEM_W = 266.66; // px, matches .scroll-item width
+                const configs = [];
+                // 4) Build rows
+                for (let i = 0; i < ROWS; i++) {
+                    const row = document.createElement('div');
+                    row.className = 'scroll-row';
+                    row.style.top = `${i * ROW_H}px`;
+                    bg.appendChild(row);
+                    const wrap = document.createElement('div');
+                    wrap.className = 'scroll-wrapper';
+                    row.appendChild(wrap);
+                    // pick a shuffled slice
+                    const slice = shuffle(allLevels).slice(0, PER_ROW);
+                    for (const lvl of slice) {
+                        const w = document.createElement('div');
+                        w.className = 'scroll-item';
+                        const img = document.createElement('img');
+                        img.src = await renderer.renderLevelImage(LevelRenderer.getDataFromCode(lvl.code));
+                        w.appendChild(img);
+                        const cap = document.createElement('div');
+                        cap.className = 'scroll-caption';
+                        cap.innerText = lvl.username;
+                        w.appendChild(cap);
+                        w.addEventListener('click', e => {
+                            e.stopPropagation();
+                            navigator.clipboard.writeText(lvl.code).catch(() => console.error('Copy failed'));
+                        });
+                        wrap.appendChild(w);
+                    }
+                    // store this row’s config
+                    configs.push({
+                        wrap,
+                        count: slice.length,
+                        itemW: ITEM_W + GAP,
+                        offset: 0,
+                        speed: (i % 2 === 0 ? 1 : -1) * (40 + Math.random() * 60) // alternate direction
+                    });
+                }
+                // 5) Animate
+                let last = performance.now();
 
-    async function nextLevel() {
-      if (queue.length === 0) {
-        document.getElementById('code-display').innerText = "Run complete!";
-        document.getElementById('meta').innerText = "";
-        document.getElementById('preview').innerHTML = "";
-        document.getElementById('preview').innerHTML = `
-  <div onclick="copyCodeToClipboard()" style="display:inline-block; cursor:pointer;">
-    <img src="${imageDataUrl}" alt="Level Preview" title="Click to copy level code">
-  </div>
-`;
-
-        updateStats();
-        return;
-      }
-
-    try {
-    while (queue.length > 0) {
-        current = queue.pop();
-        const levelData = LevelRenderer.getDataFromCode(current.code);
-        if (levelData.map.includes(63)) {
-        break;  // Valid level found
-        }
-        console.log("Level without 63 skipped");
-    }
-
-    if (!current || !LevelRenderer.getDataFromCode(current.code).map.includes(63)) {
-        console.warn("No valid level found in queue.");
-        document.getElementById('code-display').innerText = "No suitable levels found.";
-        document.getElementById('buttons').innerHTML = `<button onclick="startRun()">Start New Run</button>`;
-        return;
-    }
-    } catch (e) {
-    console.error("Error parsing level:", e);
-    }
-
-
-      document.getElementById('code-display').innerText = current.code;
-      document.getElementById('meta').innerText = `By ${current.username}, ${current.normalizedDate} (Post ID: ${current.post_id}, Count: ${current.count})`;
-      document.getElementById('buttons').innerHTML = `
-  <button onclick="markCompleted()">Completed</button>
-  <button onclick="markSkipped()">Skip</button>
-  <button onclick="skipImpossible()">Skip Impossible Level</button>
-  <button onclick="copyCodeToClipboard()">Copy Code</button>
-`;
-
-
-
-      updateStats();
-
-      // Render level preview image
-      try {
-        const levelData = LevelRenderer.getDataFromCode(current.code);
-        const imageDataUrl = await renderer.renderLevelImage(levelData);
-        document.getElementById('preview').innerHTML = `<img src="${imageDataUrl}" alt="Level Preview">`;
-      } catch (e) {
-        console.error("Error rendering preview:", e);
-        document.getElementById('preview').innerHTML = `<div style="color: red;">Failed to render preview</div>`;
-      }
-    }
-
-    function markCompleted() {
-      completed++;
-      nextLevel();
-    }
-
-    function markSkipped() {
-      skipped++;
-      nextLevel();
-    }
-
-    function skipImpossible() {
-      nextLevel();
-    }
-
-
-    function updateStats() {
-      const total = completed + skipped + (queue.length > 0 ? 1 : 0);
-      document.getElementById('stats').innerText =
-        `Levels Seen: ${total} | Completed: ${completed} | Skipped: ${skipped}`;
-    }
-
-    document.getElementById("generate-btn").addEventListener("click", startRun);
-
-    // Expose markCompleted and markSkipped globally so inline onclick works
-    window.markCompleted = markCompleted;
-    window.markSkipped = markSkipped;
-    window.startRun = startRun;
-    window.copyCodeToClipboard = copyCodeToClipboard;
-    window.skipImpossible = skipImpossible;
-  </script>
-</body>
+                function animate(now) {
+                    const dt = (now - last) / 1000;
+                    last = now;
+                    configs.forEach(cfg => {
+                        cfg.offset -= cfg.speed * dt;
+                        // when first item fully off-screen:
+                        if (cfg.speed > 0) {
+                            // scrolling right → left
+                            while (cfg.offset <= -cfg.itemW) {
+                                cfg.offset += cfg.itemW;
+                                cfg.wrap.appendChild(cfg.wrap.firstElementChild);
+                            }
+                        } else {
+                            // scrolling left → right
+                            while (cfg.offset >= cfg.itemW - ITEM_W) {
+                                cfg.offset -= cfg.itemW;
+                                cfg.wrap.insertBefore(cfg.wrap.lastElementChild, cfg.wrap.firstElementChild);
+                            }
+                        }
+                        // integer rounding to avoid sub-pixel jitter
+                        const x = cfg.offset;
+                        cfg.wrap.style.transform = `translate3d(${x}px, 0, 0)`;
+                    });
+                    requestAnimationFrame(animate);
+                }
+                requestAnimationFrame(animate);
+            }
+            loadScrollingBackground();
+        </script>
+    </body>
 </html>
