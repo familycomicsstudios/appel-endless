@@ -48,6 +48,7 @@
   <div class="checkboxes">
     <label><input type="checkbox" id="old-forum" checked> Old Forum</label>
     <label style="margin-left: 20px;"><input type="checkbox" id="new-forum" checked> New Forum</label>
+    <label style="margin-left: 20px;"><input type="checkbox" id="ahhle" checked> AHHL:E</label>
   </div>
 
   <div id="stats"></div>
@@ -63,7 +64,8 @@
   <script>
     const sources = {
       "old-forum": [],
-      "new-forum": []
+      "new-forum": [],
+      "ahhle": []
     };
 
     let queue = []; // active shuffled level pool
@@ -98,6 +100,7 @@
 
     loadForumData("old-forum", "old-forum.json");
     loadForumData("new-forum", "new-forum.json");
+    loadForumData("ahhle", "ahhle.json");
 
     function shuffle(array) {
       // Fisher-Yates shuffle
@@ -111,10 +114,12 @@
     function startRun() {
       const useOld = document.getElementById("old-forum").checked;
       const useNew = document.getElementById("new-forum").checked;
+      const useAHHLE = document.getElementById("ahhle").checked;
 
       let combined = [];
       if (useOld) combined = combined.concat(sources["old-forum"]);
       if (useNew) combined = combined.concat(sources["new-forum"]);
+      if (useAHHLE) combined = combined.concat(sources["ahhle"]);
 
       if (combined.length === 0) {
         alert("No forum sources selected or data not loaded.");
@@ -140,7 +145,16 @@
       current = queue.pop();
 
       document.getElementById('code-display').innerText = current.code;
-      document.getElementById('meta').innerText = `By ${current.username}, ${current.normalizedDate} (Post ID: ${current.post_id}, Count: ${current.count})`;
+      if (current.username && current.normalizedDate && current.post_id && current.count) {
+          // Use original fields if they exist
+          document.getElementById('meta').innerText = `By ${current.username}, ${current.normalizedDate} (Post ID: ${current.post_id}, Count: ${current.count})`;
+      } else if (current.id && current.rank && current.label && current.project && current.difficulty) {
+          // Fall back to new JSON fields if original fields are missing
+          document.getElementById('meta').innerText = `ID: ${current.id}, Rank: ${current.rank}, Level: ${current.label}, Project: ${current.project}, Difficulty: ${current.difficulty}`;
+      } else {
+          // Default fallback if neither set of fields exists
+          document.getElementById('meta').innerText = "No metadata available.";
+      }
 
       document.getElementById('buttons').innerHTML = `
         <button onclick="markCompleted()">Completed</button>
