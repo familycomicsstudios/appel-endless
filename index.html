@@ -3,16 +3,23 @@
 <head>
   <meta charset="UTF-8">
   <title>Appel Endless Level Generator</title>
+
+  <!-- 🌟 Preview Image for Discord, Twitter, etc. -->
+  <meta property="og:title" content="Appel Endless Level Generator">
+  <meta property="og:description" content="Random endless level browser for Appel levels.">
+  <meta property="og:image" content="preview.png"> <!-- replace with your actual preview image file -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="http://your-site-url.com">
+
   <style>
     body {
       font-family: 'Segoe UI', sans-serif;
       text-align: center;
       padding: 40px;
-    }
-
-    .checkboxes {
-      margin-bottom: 20px;
-      font-size: 18px;
+      background: url('bg.svg') no-repeat center center fixed;
+      background-size: cover;
+      color: #fff;
+      text-shadow: 1px 1px 2px #000;
     }
 
     button {
@@ -32,55 +39,59 @@
     #meta {
       margin-top: 10px;
       font-size: 14px;
-      color: #555;
+      color: #ddd;
     }
 
     #stats {
       margin-top: 30px;
       font-size: 16px;
-      color: #222;
+      color: #ccc;
     }
   </style>
 </head>
 <body>
   <h1>Appel Endless Level Generator</h1>
 
-  <div class="checkboxes">
-    <label><input type="checkbox" id="old-forum" checked> Old Forum</label>
-    <label style="margin-left: 20px;"><input type="checkbox" id="new-forum" checked> New Forum</label>
-    <label style="margin-left: 20px;"><input type="checkbox" id="ahhle" checked> AHHL:E</label>
-  </div>
-
   <div id="stats"></div>
 
   <div id="buttons">
-    <button id="generate-btn">Start Run</button>
+  <label>
+    <input type="checkbox" id="exclude" />
+    Exclude AHLLE
+  </label>
+  <br>
+  <button id="generate-btn">Start Run</button>
   </div>
+
+
+  <div id="preview" onclick="copyCodeToClipboard()"></div>  <!-- New preview container -->
+  <div id="meta"></div>
 
   <div id="code-display">Press "Start Run" to begin!</div>
   <div id="meta"></div>
-  
 
-  <script>
+  <script type="module">
+    import { LevelRenderer } from './levelRenderer.js';  // adjust path as needed
+
+    const renderer = new LevelRenderer();
+
     const sources = {
       "old-forum": [],
       "new-forum": [],
-      "ahhle": []
+      "ahlle": []
     };
 
-    let queue = []; // active shuffled level pool
+    let queue = [];
     let current = null;
-
     let completed = 0;
     let skipped = 0;
 
     function normalizeDate(dateStr) {
-      // Attempt to parse common formats
       const date = new Date(dateStr);
       if (!isNaN(date)) {
         return date.toISOString().replace("T", " ").split(".")[0];
       }
-      return dateStr; // fallback
+      return dateStr;
     }
 
     function loadForumData(forumId, filename) {
@@ -98,12 +109,11 @@
         });
     }
 
-    loadForumData("old-forum", "old-forum.json");
-    loadForumData("new-forum", "new-forum.json");
-    loadForumData("ahhle", "ahhle.json");
+    loadForumData("old-forum", "old.json");
+    loadForumData("new-forum", "new.json");
+    loadForumData("ahlle", "ahlle.json");
 
     function shuffle(array) {
-      // Fisher-Yates shuffle
       for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [array[i], array[j]] = [array[j], array[i]];
@@ -111,57 +121,85 @@
       return array;
     }
 
-    function startRun() {
-      const useOld = document.getElementById("old-forum").checked;
-      const useNew = document.getElementById("new-forum").checked;
-      const useAHHLE = document.getElementById("ahhle").checked;
-
-      let combined = [];
-      if (useOld) combined = combined.concat(sources["old-forum"]);
-      if (useNew) combined = combined.concat(sources["new-forum"]);
-      if (useAHHLE) combined = combined.concat(sources["ahhle"]);
-
+    async function startRun() {
+      let combined = [...sources["old-forum"], ...sources["new-forum"], ...(exclude ? [] : sources["ahlle"])];
       if (combined.length === 0) {
-        alert("No forum sources selected or data not loaded.");
+        alert("No data loaded.");
         return;
       }
 
       queue = shuffle([...combined]);
       completed = 0;
       skipped = 0;
-
+      await renderer.loadAssets();  // preload assets once before run
       nextLevel();
     }
+    function copyCodeToClipboard() {
+        const code = current?.code;
+        if (!code) return;
+        navigator.clipboard.writeText(code)
+            .catch(err => console.error("Failed to copy code:", err));
+    }
 
-    function nextLevel() {
+
+    async function nextLevel() {
       if (queue.length === 0) {
         document.getElementById('code-display').innerText = "Run complete!";
         document.getElementById('meta').innerText = "";
-        document.getElementById('buttons').innerHTML = `<button onclick="startRun()">Start New Run</button>`;
+        document.getElementById('preview').innerHTML = "";
+        document.getElementById('preview').innerHTML = `
+  <div onclick="copyCodeToClipboard()" style="display:inline-block; cursor:pointer;">
+    <img src="${imageDataUrl}" alt="Level Preview" title="Click to copy level code">
+  </div>
+`;
+
         updateStats();
         return;
       }
 
-      current = queue.pop();
+    try {
+    while (queue.length > 0) {
+        current = queue.pop();
+        const levelData = LevelRenderer.getDataFromCode(current.code);
+        if (levelData.map.includes(63)) {
+        break;  // Valid level found
+        }
+        console.log("Level without 63 skipped");
+    }
+
+    if (!current || !LevelRenderer.getDataFromCode(current.code).map.includes(63)) {
+        console.warn("No valid level found in queue.");
+        document.getElementById('code-display').innerText = "No suitable levels found.";
+        document.getElementById('buttons').innerHTML = `<button onclick="startRun()">Start New Run</button>`;
+        return;
+    }
+    } catch (e) {
+    console.error("Error parsing level:", e);
+    }
+
 
       document.getElementById('code-display').innerText = current.code;
-      if (current.username && current.normalizedDate && current.post_id && current.count) {
-          // Use original fields if they exist
-          document.getElementById('meta').innerText = `By ${current.username}, ${current.normalizedDate} (Post ID: ${current.post_id}, Count: ${current.count})`;
-      } else if (current.id && current.rank && current.label && current.project && current.difficulty) {
-          // Fall back to new JSON fields if original fields are missing
-          document.getElementById('meta').innerText = `ID: ${current.id}, Rank: ${current.rank}, Level: ${current.label}, Project: ${current.project}, Difficulty: ${current.difficulty}`;
-      } else {
-          // Default fallback if neither set of fields exists
-          document.getElementById('meta').innerText = "No metadata available.";
-      }
-
+      document.getElementById('meta').innerText = `By ${current.username}, ${current.normalizedDate} (Post ID: ${current.post_id}, Count: ${current.count})`;
       document.getElementById('buttons').innerHTML = `
-        <button onclick="markCompleted()">Completed</button>
-        <button onclick="markSkipped()">Skip</button>
-      `;
+  <button onclick="markCompleted()">Completed</button>
+  <button onclick="markSkipped()">Skip</button>
+  <button onclick="skipImpossible()">Skip Impossible Level</button>
+  <button onclick="copyCodeToClipboard()">Copy Code</button>
+`;
+
+
 
       updateStats();
+
+      // Render level preview image
+      try {
+        const levelData = LevelRenderer.getDataFromCode(current.code);
+        const imageDataUrl = await renderer.renderLevelImage(levelData);
+        document.getElementById('preview').innerHTML = `<img src="${imageDataUrl}" alt="Level Preview">`;
+      } catch (e) {
+        console.error("Error rendering preview:", e);
+        document.getElementById('preview').innerHTML = `<div style="color: red;">Failed to render preview</div>`;
+      }
     }
 
     function markCompleted() {
@@ -174,14 +212,25 @@
       nextLevel();
     }
 
+    function skipImpossible() {
+      nextLevel();
+    }
+
+
     function updateStats() {
       const total = completed + skipped + (queue.length > 0 ? 1 : 0);
       document.getElementById('stats').innerText =
         `Levels Seen: ${total} | Completed: ${completed} | Skipped: ${skipped}`;
     }
 
-    // Initial button event
     document.getElementById("generate-btn").addEventListener("click", startRun);
+
+    // Expose markCompleted and markSkipped globally so inline onclick works
+    window.markCompleted = markCompleted;
+    window.markSkipped = markSkipped;
+    window.startRun = startRun;
+    window.copyCodeToClipboard = copyCodeToClipboard;
+    window.skipImpossible = skipImpossible;
   </script>
 </body>
 </html>
